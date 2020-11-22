@@ -5,7 +5,7 @@ import hashlib
 from arcana.utils import split_extension, parse_value
 from arcana.exceptions import (
     ArcanaError, ArcanaFileFormatError, ArcanaUsageError, ArcanaNameError,
-    ArcanaDataNotDerivedYetError)
+    ArcanaDataNotDerivedYetError, ArcanaUriAlreadySetException)
 from .file_format import FileFormat
 from .base import BaseFileset, BaseField
 
@@ -444,10 +444,13 @@ class Fileset(BaseItemMixin, BaseFileset):
     @uri.setter
     def uri(self, uri):
         if self._uri is None:
+            # Use the resource label instead of the resource ID to avoid
+            # duplication of resources
             self._uri = uri
         elif uri != self._uri:
-            raise ArcanaUsageError("Can't change value of URI for {} from {} "
-                                   "to {}".format(self, self._uri, uri))
+            raise ArcanaUriAlreadySetException(
+                "Can't change value of URI for {} from {} to {}"
+                .format(self, self._uri, uri))
 
     def aux_file(self, name):
         return self._aux_files[name]

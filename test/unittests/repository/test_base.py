@@ -43,8 +43,8 @@ class DummyAnalysis(with_metaclass(AnalysisMetaClass, Analysis)):
 
 class TestSinkAndSource(BaseTestCase):
 
-    STUDY_NAME = 'aanalysis'
-    SUMMARY_STUDY_NAME = 'asummary'
+    ANALYSIS_NAME = 'aanalysis'
+    SUMMARY_ANALYSIS = 'asummary'
     INPUT_FILESETS = {'source1': '1',
                       'source2': '2',
                       'source3': '3',
@@ -52,7 +52,7 @@ class TestSinkAndSource(BaseTestCase):
 
     def test_repository_roundtrip(self):
         analysis = DummyAnalysis(
-            self.STUDY_NAME, self.dataset, processor=SingleProc('a_dir'),
+            self.ANALYSIS_NAME, self.dataset, processor=SingleProc('a_dir'),
             inputs=[FilesetFilter('source1', 'source1', text_format),
                     FilesetFilter('source2', 'source2', text_format),
                     FilesetFilter('source3', 'source3', text_format),
@@ -96,15 +96,15 @@ class TestSinkAndSource(BaseTestCase):
         # Check local directory was created properly
         outputs = [
             f for f in sorted(os.listdir(
-                self.get_session_dir(from_analysis=self.STUDY_NAME)))
+                self.get_session_dir(from_analysis=self.ANALYSIS_NAME)))
             if f not in (LocalFileSystemRepo.FIELDS_FNAME,
                          LocalFileSystemRepo.PROV_DIR)]
         self.assertEqual(outputs, ['sink1.txt', 'sink3.txt', 'sink4.txt'])
 
     def test_fields_roundtrip(self):
-        STUDY_NAME = 'fields_roundtrip'
+        ANALYSIS_NAME = 'fields_roundtrip'
         analysis = DummyAnalysis(
-            STUDY_NAME, self.dataset,
+            ANALYSIS_NAME, self.dataset,
             processor=SingleProc('a_dir'),
             inputs=[])
         dummy_pipeline = analysis.dummy_pipeline()
@@ -138,7 +138,7 @@ class TestSinkAndSource(BaseTestCase):
 
     def test_summary(self):
         analysis = DummyAnalysis(
-            self.SUMMARY_STUDY_NAME, self.dataset, SingleProc('ad'),
+            self.SUMMARY_ANALYSIS, self.dataset, SingleProc('ad'),
             inputs=[FilesetFilter('source1', 'source1', text_format),
                     FilesetFilter('source2', 'source2', text_format),
                     FilesetFilter('source3', 'source3', text_format)])
@@ -206,17 +206,17 @@ class TestSinkAndSource(BaseTestCase):
         # Check local summary directories were created properly
         subject_dir = self.get_session_dir(
             frequency='per_subject',
-            from_analysis=self.SUMMARY_STUDY_NAME)
+            from_analysis=self.SUMMARY_ANALYSIS)
         self.assertEqual(sorted(os.listdir(subject_dir)),
                          [LocalFileSystemRepo.PROV_DIR, 'subject_sink.txt'])
         visit_dir = self.get_session_dir(
             frequency='per_visit',
-            from_analysis=self.SUMMARY_STUDY_NAME)
+            from_analysis=self.SUMMARY_ANALYSIS)
         self.assertEqual(sorted(os.listdir(visit_dir)),
                          [LocalFileSystemRepo.PROV_DIR, 'visit_sink.txt'])
         project_dir = self.get_session_dir(
             frequency='per_dataset',
-            from_analysis=self.SUMMARY_STUDY_NAME)
+            from_analysis=self.SUMMARY_ANALYSIS)
         self.assertEqual(sorted(os.listdir(project_dir)),
                          [LocalFileSystemRepo.PROV_DIR, 'analysis_sink.txt'])
         # Reload the data from the summary directories
@@ -268,7 +268,7 @@ class TestSinkAndSource(BaseTestCase):
         reloadworkflow.run()
         outputs = [
             f for f in sorted(os.listdir(
-                self.get_session_dir(from_analysis=self.SUMMARY_STUDY_NAME)))
+                self.get_session_dir(from_analysis=self.SUMMARY_ANALYSIS)))
             if f not in (LocalFileSystemRepo.FIELDS_FNAME,
                          LocalFileSystemRepo.PROV_DIR)]
         self.assertEqual(outputs,

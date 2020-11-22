@@ -43,7 +43,7 @@ class DummyAnalysis(with_metaclass(AnalysisMetaClass, Analysis)):
 
 class TestLocalFileSystemRepo(BaseTestCase):
 
-    STUDY_NAME = 'local_repo'
+    ANALYSIS_NAME = 'local_repo'
     INPUT_FILESETS = {'source1': '1',
                       'source2': '2',
                       'source3': '3',
@@ -62,139 +62,132 @@ class TestDirectoryProjectInfo(BaseMultiSubjectTestCase):
     DATASET_CONTENTS = {'ones': 1, 'tens': 10, 'hundreds': 100,
                         'thousands': 1000, 'with_header': {'.': 'main',
                                                            'header': 'header'}}
+    ANALYSIS_NAME = 'derived'
 
     def get_tree(self, dataset, sync_with_repo=False):
+        fileset_kwargs = {'resource_name': 'text',
+                          'dataset': dataset}
+        derived_fileset_kwargs = {'resource_name': 'text',
+                                  'dataset': dataset,
+                                  'from_analysis': self.ANALYSIS_NAME}
+        field_kwargs = {'dataset': dataset}
+        derived_field_kwargs = {'dataset': dataset,
+                                'from_analysis': self.ANALYSIS_NAME}
         filesets = [
             # Subject1
             Fileset('ones', text_format,
                     frequency='per_subject',
                     subject_id='subject1',
-                    resource_name='text',
-                    dataset=dataset),
+                    **fileset_kwargs),
             Fileset('tens', text_format,
                     frequency='per_subject',
                     subject_id='subject1',
-                    resource_name='text',
-                    dataset=dataset),
+                    **derived_fileset_kwargs),
             # subject1/visit1
             Fileset('hundreds', text_format,
                     subject_id='subject1', visit_id='visit1',
-                    resource_name='text',
-                    dataset=dataset),
+                    **derived_fileset_kwargs),
             Fileset('ones', text_format,
                     subject_id='subject1', visit_id='visit1',
-                    resource_name='text',
-                    dataset=dataset),
+                    **fileset_kwargs),
             Fileset('tens', text_format,
                     subject_id='subject1', visit_id='visit1',
-                    resource_name='text',
-                    dataset=dataset),
+                    **derived_fileset_kwargs),
             Fileset('with_header', text_format,
                     frequency='per_session',
                     subject_id='subject1', visit_id='visit1',
-                    resource_name='text',
-                    dataset=dataset),
+                    **derived_fileset_kwargs),
             # subject1/visit2
             Fileset('ones', text_format,
                     subject_id='subject1', visit_id='visit2',
-                    resource_name='text',
-                    dataset=dataset),
+                    **fileset_kwargs),
             Fileset('tens', text_format,
                     subject_id='subject1', visit_id='visit2',
-                    resource_name='text',
-                    dataset=dataset),
+                    **derived_fileset_kwargs),
             # Subject 2
             Fileset('ones', text_format,
                     frequency='per_subject',
                     subject_id='subject2',
-                    resource_name='text',
-                    dataset=dataset),
+                    **fileset_kwargs),
             Fileset('tens', text_format,
                     frequency='per_subject',
                     subject_id='subject2',
-                    resource_name='text',
-                    dataset=dataset),
+                    **derived_fileset_kwargs),
             # subject2/visit1
             Fileset('ones', text_format,
                     subject_id='subject2', visit_id='visit1',
-                    resource_name='text',
-                    dataset=dataset),
+                    **fileset_kwargs),
             Fileset('tens', text_format,
                     subject_id='subject2', visit_id='visit1',
-                    resource_name='text',
-                    dataset=dataset),
+                    **derived_fileset_kwargs),
             # subject2/visit2
             Fileset('ones', text_format,
                     subject_id='subject2', visit_id='visit2',
-                    resource_name='text',
-                    dataset=dataset),
+                    **fileset_kwargs),
             Fileset('tens', text_format,
                     subject_id='subject2', visit_id='visit2',
-                    resource_name='text',
-                    dataset=dataset),
+                    **derived_fileset_kwargs),
             # Visit 1
             Fileset('ones', text_format,
                     frequency='per_visit',
                     visit_id='visit1',
-                    resource_name='text',
-                    dataset=dataset),
+                    **fileset_kwargs),
             # Analysis
             Fileset('ones', text_format,
                     frequency='per_dataset',
-                    resource_name='text',
-                    dataset=dataset)]
+                    **fileset_kwargs)]
         fields = [
             # Subject 2
             Field('e', value=3.33333,
                   frequency='per_subject',
                   subject_id='subject2',
-                  dataset=dataset),
+                  **field_kwargs),
             # subject2/visit2
             Field('a', value=22,
                   subject_id='subject2', visit_id='visit2',
-                  dataset=dataset),
+                  **derived_field_kwargs),
             Field('b', value=220,
                   subject_id='subject2', visit_id='visit2',
-                  dataset=dataset),
+                  **derived_field_kwargs),
             Field('c', value='buggy',
                   subject_id='subject2', visit_id='visit2',
-                  dataset=dataset),
+                  **derived_field_kwargs),
             # Subject1
             Field('e', value=4.44444,
                   frequency='per_subject',
                   subject_id='subject1',
-                  dataset=dataset),
+                  **derived_field_kwargs),
             # subject1/visit1
             Field('a', value=1,
                   subject_id='subject1', visit_id='visit1',
-                  dataset=dataset),
+                  **field_kwargs),
             Field('b', value=10,
                   subject_id='subject1', visit_id='visit1',
-                  dataset=dataset),
+                  **derived_field_kwargs),
             Field('d', value=42.42,
                   subject_id='subject1', visit_id='visit1',
-                  dataset=dataset),
+                  **derived_field_kwargs),
             # subject1/visit2
             Field('a', value=2,
                   subject_id='subject1', visit_id='visit2',
-                  dataset=dataset),
+                  **derived_field_kwargs),
             Field('c', value='van',
                   subject_id='subject1', visit_id='visit2',
-                  dataset=dataset),
+                  **derived_field_kwargs),
             # Visit 1
             Field('f', value='dog',
                   frequency='per_visit',
                   visit_id='visit1',
-                  dataset=dataset),
+                  **derived_field_kwargs),
             # Visit 2
             Field('f', value='cat',
                   frequency='per_visit',
                   visit_id='visit2',
-                  dataset=dataset),
+                  **derived_field_kwargs),
             # Analysis
             Field('g', value=100,
                   frequency='per_dataset',
-                  dataset=dataset)]
+                  **derived_field_kwargs)]
         # Set URI and IDs if necessary for repository type
         if sync_with_repo:
             for fileset in filesets:

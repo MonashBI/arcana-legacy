@@ -173,3 +173,6 @@ class ArcanaXnatCSCommandError(ArcanaRepositoryError):
     Error in the command file used to access an XNAT repository via the XNAT
     container service.
     """
+
+class ArcanaUriAlreadySetException(ArcanaException):
+    """Raised when attempting to set the URI of an item is already set"""

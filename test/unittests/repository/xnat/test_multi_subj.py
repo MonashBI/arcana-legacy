@@ -55,7 +55,7 @@ class TestProjectInfo(TestMultiSubjectOnXnatMixin,
             for fileset in node.filesets:
                 fileset.format = text_format
                 # Clear id and format name from regenerated tree
-                fileset._id = None  # pylint: disable=protected-access
+                # fileset._id = None  # pylint: disable=protected-access
 #                 fileset.get()
         ref_tree = self.get_tree(self.dataset)  # , sync_with_repo=True)
         self.assertEqual(

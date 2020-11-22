@@ -406,7 +406,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
     DATASET_CONTENTS = {'one': 1.0, 'ten': 10.0, 'hundred': 100.0,
                         'thousand': 1000.0}
 
-    STUDY_NAME = 'analysis'
+    ANALYSIS_NAME = 'analysis'
 
     @property
     def input_tree(self):
@@ -415,7 +415,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
             for visit_id, fileset_names in list(visit_ids.items()):
                 # Create filesets
                 for name in fileset_names:
-                    from_analysis = self.STUDY_NAME if name != 'one' else None
+                    from_analysis = self.ANALYSIS_NAME if name != 'one' else None
                     filesets.append(
                         Fileset(name, text_format, subject_id=subj_id,
                                 visit_id=visit_id,
@@ -429,7 +429,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
         derived_filesets = [f for f in self.DATASET_CONTENTS
                             if f != 'one']
         analysis = self.create_analysis(
-            ExistingPrereqAnalysis, self.STUDY_NAME,
+            ExistingPrereqAnalysis, self.ANALYSIS_NAME,
             dataset=self.local_dataset,
             inputs=[FilesetFilter('one', 'one', text_format)])
         # Get all pipelines in the analysis
@@ -448,7 +448,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
     def test_per_session_prereqs(self):
         # Generate all data for 'thousand' spec
         analysis = self.create_analysis(
-            ExistingPrereqAnalysis, self.STUDY_NAME,
+            ExistingPrereqAnalysis, self.ANALYSIS_NAME,
             inputs=[FilesetFilter('one', 'one', text_format)])
         analysis.derive('thousand')
         targets = {
@@ -465,7 +465,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
             for visit_id in visits:
                 session = tree.subject(subj_id).session(visit_id)
                 fileset = session.fileset('thousand',
-                                          from_analysis=self.STUDY_NAME)
+                                          from_analysis=self.ANALYSIS_NAME)
                 fileset.format = text_format
                 self.assertContentsEqual(
                     fileset, targets[subj_id][visit_id],

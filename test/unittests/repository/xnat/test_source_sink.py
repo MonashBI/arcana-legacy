@@ -1,26 +1,25 @@
-from __future__ import absolute_import
-from builtins import range
 import os
 import os.path as op
 import shutil
 import json
 import time
+from glob import glob
 import unittest
 from multiprocessing import Process
 from arcana.utils.testing import BaseTestCase
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
-from arcana.repository.xnat import XnatRepo
 from arcana.processor import SingleProc
+from arcana.repository.xnat import XnatRepo
 from arcana.repository.interfaces import RepositorySource, RepositorySink
 from arcana.data import FilesetFilter
 from arcana.utils import PATH_SUFFIX, JSON_ENCODING
 from arcana.data.file_format import text_format
 from arcana.utils.testing.xnat import (
-    TestOnXnatMixin, SERVER, SKIP_ARGS, filter_scans, logger)
+    TestOnXnatMixin, SERVER, SKIP_ARGS, filter_resources,
+    add_metadata_resources, logger)
 from arcana.analysis import Analysis, AnalysisMetaClass
 from arcana.data import InputFilesetSpec, FilesetSpec, FieldSpec
-from future.utils import with_metaclass
 
 
 class DummyAnalysis(Analysis, metaclass=AnalysisMetaClass):
@@ -37,7 +36,7 @@ class DummyAnalysis(Analysis, metaclass=AnalysisMetaClass):
                     frequency='per_subject'),
         FilesetSpec('visit_sink', text_format, 'dummy_pipeline',
                     frequency='per_visit'),
-        FilesetSpec('analysis_sink', text_format, 'dummy_pipeline',
+        FilesetSpec('dataset_sink', text_format, 'dummy_pipeline',
                     frequency='per_dataset'),
         FilesetSpec('resink1', text_format, 'dummy_pipeline'),
         FilesetSpec('resink2', text_format, 'dummy_pipeline'),
@@ -54,8 +53,8 @@ class TestXnatSourceAndSinkBase(TestOnXnatMixin, BaseTestCase):
 
     SUBJECT = 'SUBJECT'
     VISIT = 'VISIT'
-    STUDY_NAME = 'aanalysis'
-    SUMMARY_STUDY_NAME = 'asummary'
+    ANALYSIS_NAME = 'aanalysis'
+    SUMMARY_ANALYSIS = 'asummary'
 
     INPUT_FILESETS = {'source1': 'foo', 'source2': 'bar',
                       'source3': 'wee', 'source4': 'wa'}
@@ -95,7 +94,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
             server=SERVER, cache_dir=self.cache_dir)
         dataset = repository.dataset(self.project)
         analysis = DummyAnalysis(
-            self.STUDY_NAME, dataset=dataset, processor=SingleProc('a_dir'),
+            self.ANALYSIS_NAME, dataset=dataset, processor=SingleProc('a_dir'),
             inputs=[FilesetFilter('source1', 'source1', text_format),
                     FilesetFilter('source2', 'source2', text_format),
                     FilesetFilter('source3', 'source3', text_format),
@@ -138,18 +137,25 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
                     sink, sink_name + PATH_SUFFIX)
         workflow.run()
         # Check cache was created properly
-        self.assertEqual(filter_scans(os.listdir(self.session_cache())),
-                         ['source1-source1', 'source2-source2',
-                          'source3-source3', 'source4-source4'])
-        expected_sink_filesets = ['sink1', 'sink3', 'sink4']
+        scans_cache_dir = glob('{}/**/scans'.format(repository.cache_dir),
+                               recursive=True)[0]
+        self.assertEqual(sorted(os.listdir(scans_cache_dir)), source_files)
+        resources_cache_dir = scans_cache_dir[:-len('scans')] + 'resources'
+        expected_resources = sorted(
+            repository.prepend_analysis(f, self.ANALYSIS_NAME)
+            for f in sink_files + [repository.PROV_RESOURCE])
         self.assertEqual(
-            filter_scans(os.listdir(self.session_cache(
-                from_analysis=self.STUDY_NAME))),
-            [(e + '-' + e) for e in expected_sink_filesets])
-        with self._connect() as login:
-            fileset_names = filter_scans(login.experiments[self.session_label(
-                from_analysis=self.STUDY_NAME)].scans.keys())
-        self.assertEqual(fileset_names, expected_sink_filesets)
+            sorted(os.listdir(resources_cache_dir)),
+            sorted(
+                expected_resources + [
+                    (repository.prepend_analysis(f, self.ANALYSIS_NAME)
+                     + repository.MD5_SUFFIX)
+                    for f in sink_files]))
+        with repository:
+            xproject = repository.login.projects[self.project]
+            xsession = xproject.experiments[self.session_label()]
+            fileset_names = sorted(r.label for r in xsession.resources.values())
+        self.assertEqual(fileset_names, expected_resources)
 
     @unittest.skipIf(*SKIP_ARGS)
     def test_fields_roundtrip(self):
@@ -157,7 +163,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
             server=SERVER, cache_dir=self.cache_dir)
         dataset = repository.dataset(self.project)
         analysis = DummyAnalysis(
-            self.STUDY_NAME, dataset=dataset, processor=SingleProc('a_dir'),
+            self.ANALYSIS_NAME, dataset=dataset, processor=SingleProc('a_dir'),
             inputs=[FilesetFilter('source1', 'source1', text_format)])
         fields = ['field{}'.format(i) for i in range(1, 4)]
         dummy_pipeline = analysis.dummy_pipeline()
@@ -188,85 +194,85 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         self.assertEqual(results.outputs.field2_field, field2)
         self.assertEqual(results.outputs.field3_field, field3)
 
-    @unittest.skip('Skipping delayed download test as it is is proving '
-                   'problematic')
-    def test_delayed_download(self):
-        """
-        Tests handling of race conditions where separate processes attempt to
-        cache the same fileset
-        """
-        cache_dir = op.join(self.work_dir,
-                            'cache-delayed-download')
-        DATASET_NAME = 'source1'
-        target_path = op.join(self.session_cache(cache_dir),
-                              DATASET_NAME,
-                              DATASET_NAME + text_format.extension)
-        tmp_dir = target_path + '.download'
-        shutil.rmtree(cache_dir, ignore_errors=True)
-        os.makedirs(cache_dir)
-        repository = XnatRepo(server=SERVER, cache_dir=cache_dir)
-        dataset = repository.dataset(self.project)
-        analysis = DummyAnalysis(
-            self.STUDY_NAME, dataset, SingleProc('ad'),
-            inputs=[FilesetFilter(DATASET_NAME, DATASET_NAME, text_format)])
-        source = pe.Node(
-            RepositorySource(
-                [analysis.bound_spec(DATASET_NAME).slice]),
-            name='delayed_source')
-        source.inputs.subject_id = self.SUBJECT
-        source.inputs.visit_id = self.VISIT
-        result1 = source.run()
-        source1_path = result1.outputs.source1_path
-        self.assertTrue(op.exists(source1_path))
-        self.assertEqual(source1_path, target_path,
-                         "Output file path '{}' not equal to target path '{}'"
-                         .format(source1_path, target_path))
-        # Clear cache to start again
-        shutil.rmtree(cache_dir, ignore_errors=True)
-        # Create tmp_dir before running interface, this time should wait for 1
-        # second, check to see that the session hasn't been created and then
-        # clear it and redownload the fileset.
-        os.makedirs(tmp_dir)
-        source.inputs.race_cond_delay = 1
-        result2 = source.run()
-        source1_path = result2.outputs.source1_path
-        # Clear cache to start again
-        shutil.rmtree(cache_dir, ignore_errors=True)
-        # Create tmp_dir before running interface, this time should wait for 1
-        # second, check to see that the session hasn't been created and then
-        # clear it and redownload the fileset.
-        internal_dir = op.join(tmp_dir, 'internal')
-        deleted_tmp_dir = tmp_dir + '.deleted'
+    # @unittest.skip('Skipping delayed download test as it is is proving '
+    #                'problematic')
+    # def test_delayed_download(self):
+    #     """
+    #     Tests handling of race conditions where separate processes attempt to
+    #     cache the same fileset
+    #     """
+    #     cache_dir = op.join(self.work_dir,
+    #                         'cache-delayed-download')
+    #     DATASET_NAME = 'source1'
+    #     target_path = op.join(self.session_cache(cache_dir),
+    #                           DATASET_NAME,
+    #                           DATASET_NAME + text_format.extension)
+    #     tmp_dir = target_path + '.download'
+    #     shutil.rmtree(cache_dir, ignore_errors=True)
+    #     os.makedirs(cache_dir)
+    #     repository = XnatRepo(server=SERVER, cache_dir=cache_dir)
+    #     dataset = repository.dataset(self.project)
+    #     analysis = DummyAnalysis(
+    #         self.ANALYSIS_NAME, dataset, SingleProc('ad'),
+    #         inputs=[FilesetFilter(DATASET_NAME, DATASET_NAME, text_format)])
+    #     source = pe.Node(
+    #         RepositorySource(
+    #             [analysis.bound_spec(DATASET_NAME).slice]),
+    #         name='delayed_source')
+    #     source.inputs.subject_id = self.SUBJECT
+    #     source.inputs.visit_id = self.VISIT
+    #     result1 = source.run()
+    #     source1_path = result1.outputs.source1_path
+    #     self.assertTrue(op.exists(source1_path))
+    #     self.assertEqual(source1_path, target_path,
+    #                      "Output file path '{}' not equal to target path '{}'"
+    #                      .format(source1_path, target_path))
+    #     # Clear cache to start again
+    #     shutil.rmtree(cache_dir, ignore_errors=True)
+    #     # Create tmp_dir before running interface, this time should wait for 1
+    #     # second, check to see that the session hasn't been created and then
+    #     # clear it and redownload the fileset.
+    #     os.makedirs(tmp_dir)
+    #     source.inputs.race_cond_delay = 1
+    #     result2 = source.run()
+    #     source1_path = result2.outputs.source1_path
+    #     # Clear cache to start again
+    #     shutil.rmtree(cache_dir, ignore_errors=True)
+    #     # Create tmp_dir before running interface, this time should wait for 1
+    #     # second, check to see that the session hasn't been created and then
+    #     # clear it and redownload the fileset.
+    #     internal_dir = op.join(tmp_dir, 'internal')
+    #     deleted_tmp_dir = tmp_dir + '.deleted'
 
-        def simulate_download():
-            "Simulates a download in a separate process"
-            os.makedirs(internal_dir)
-            time.sleep(5)
-            # Modify a file in the temp dir to make the source download keep
-            # waiting
-            logger.info('Updating simulated download directory')
-            with open(op.join(internal_dir, 'download'), 'a') as f:
-                f.write('downloading')
-            time.sleep(10)
-            # Simulate the finalising of the download by copying the previously
-            # downloaded file into place and deleting the temp dir.
-            logger.info('Finalising simulated download')
-            with open(target_path, 'a') as f:
-                f.write('simulated')
-            shutil.move(tmp_dir, deleted_tmp_dir)
+    #     def simulate_download():
+    #         "Simulates a download in a separate process"
+    #         os.makedirs(internal_dir)
+    #         time.sleep(5)
+    #         # Modify a file in the temp dir to make the source download keep
+    #         # waiting
+    #         logger.info('Updating simulated download directory')
+    #         with open(op.join(internal_dir, 'download'), 'a') as f:
+    #             f.write('downloading')
+    #         time.sleep(10)
+    #         # Simulate the finalising of the download by copying the previously
+    #         # downloaded file into place and deleting the temp dir.
+    #         logger.info('Finalising simulated download')
+    #         with open(target_path, 'a') as f:
+    #             f.write('simulated')
+    #         shutil.move(tmp_dir, deleted_tmp_dir)
 
-        source.inputs.race_cond_delay = 10
-        p = Process(target=simulate_download)
-        p.start()  # Start the simulated download in separate process
-        time.sleep(1)
-        source.run()  # Run the local download
-        p.join()
-        with open(op.join(deleted_tmp_dir, 'internal', 'download')) as f:
-            d = f.read()
-        self.assertEqual(d, 'downloading')
-        with open(target_path) as f:
-            d = f.read()
-        self.assertEqual(d, 'simulated')
+    #     source.inputs.race_cond_delay = 10
+    #     p = Process(target=simulate_download)
+    #     p.start()  # Start the simulated download in separate process
+    #     time.sleep(1)
+    #     source.run()  # Run the local download
+    #     p.join()
+    #     with open(op.join(deleted_tmp_dir, 'internal', 'download')) as f:
+    #         d = f.read()
+    #     self.assertEqual(d, 'downloading')
+    #     with open(target_path) as f:
+    #         d = f.read()
+    #     self.assertEqual(d, 'simulated')
 
     @unittest.skipIf(*SKIP_ARGS)
     def test_checksums(self):
@@ -276,23 +282,23 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         """
         cache_dir = op.join(self.work_dir, 'cache-checksum-check')
         DATASET_NAME = 'source1'
-        STUDY_NAME = 'checksum_check_analysis'
+        ANALYSIS_NAME = 'checksum_check_analysis'
         fileset_fname = DATASET_NAME + text_format.extension
-        source_target_path = op.join(self.session_cache(cache_dir),
-                                     DATASET_NAME + '-' + DATASET_NAME)
-        md5_path = source_target_path + XnatRepo.MD5_SUFFIX
-        source_target_fpath = op.join(source_target_path, fileset_fname)
         shutil.rmtree(cache_dir, ignore_errors=True)
         os.makedirs(cache_dir)
-        source_repository = XnatRepo(
+        repository = XnatRepo(
             server=SERVER, cache_dir=cache_dir)
-        source_dataset = source_repository.dataset(self.project)
-        sink_repository = XnatRepo(server=SERVER, cache_dir=cache_dir)
-        sink_dataset = sink_repository.dataset(
+        source_dataset = repository.dataset(self.project)
+        source_cache_dir = self.session_cache_path(repository)
+        source_target_path = op.join(source_cache_dir, 'scans', DATASET_NAME,
+                                     'resources', text_format.name)
+        md5_path = source_target_path + XnatRepo.MD5_SUFFIX
+        source_target_fpath = op.join(source_target_path, fileset_fname)
+        sink_dataset = repository.dataset(
             self.checksum_sink_project, subject_ids=['SUBJECT'],
             visit_ids=['VISIT'], fill_tree=True)
         analysis = DummyAnalysis(
-            STUDY_NAME,
+            ANALYSIS_NAME,
             dataset=sink_dataset,
             processor=SingleProc('ad'),
             inputs=[FilesetFilter(DATASET_NAME, DATASET_NAME, text_format,
@@ -349,11 +355,11 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         sink.inputs.subject_id = self.SUBJECT
         sink.inputs.visit_id = self.VISIT
         sink.inputs.sink1_path = source_target_fpath
-        sink_target_path = op.join(
-            self.session_cache(
-                cache_dir, project=self.checksum_sink_project,
-                subject=(self.SUBJECT), from_analysis=STUDY_NAME),
-            DATASET_NAME + '-' + DATASET_NAME)
+        sink_cache_dir = self.session_cache_path(
+            repository, project=self.checksum_sink_project)
+        sink_target_path = '{}/resources/{}'.format(
+            sink_cache_dir,
+            repository.prepend_analysis(DATASET_NAME, ANALYSIS_NAME))
         sink_md5_path = sink_target_path + XnatRepo.MD5_SUFFIX
         sink.run()
         with open(md5_path) as f:
@@ -368,6 +374,10 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
 
 class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
 
+
+    SUBJECT = 'SUBJECT'
+    VISIT = 'VISIT'
+
     @unittest.skipIf(*SKIP_ARGS)
     def test_summary(self):
         # Create working dirs
@@ -375,7 +385,7 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
         repository = XnatRepo(
             server=SERVER, cache_dir=self.cache_dir)
         analysis = DummyAnalysis(
-            self.SUMMARY_STUDY_NAME,
+            self.SUMMARY_ANALYSIS,
             repository.dataset(self.project),
             SingleProc('ad'),
             inputs=[
@@ -414,20 +424,20 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
         visit_sink.inputs.desc = (
             "Tests the sinking of visit-wide filesets")
         # Test project sink
-        analysis_sink_files = ['analysis_sink']
-        analysis_sink = pe.Node(
+        dataset_sink_files = ['dataset_sink']
+        dataset_sink = pe.Node(
             RepositorySink(
-                [analysis.bound_spec(f).slice for f in analysis_sink_files],
+                [analysis.bound_spec(f).slice for f in dataset_sink_files],
                 dummy_pipeline),
-            name='analysis_sink')
-        analysis_sink.inputs.name = 'project_summary'
-        analysis_sink.inputs.desc = (
+            name='dataset_sink')
+        dataset_sink.inputs.name = 'project_summary'
+        dataset_sink.inputs.desc = (
             "Tests the sinking of project-wide filesets")
         # Create workflow connecting them together
         workflow = pe.Workflow('summary_unittest',
                                base_dir=self.work_dir)
         workflow.add_nodes((source, subject_sink, visit_sink,
-                            analysis_sink))
+                            dataset_sink))
         workflow.connect(inputnode, 'subject_id', source, 'subject_id')
         workflow.connect(inputnode, 'visit_id', source, 'visit_id')
         workflow.connect(inputnode, 'subject_id', subject_sink, 'subject_id')
@@ -440,56 +450,41 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
             visit_sink, 'visit_sink' + PATH_SUFFIX)
         workflow.connect(
             source, 'source3' + PATH_SUFFIX,
-            analysis_sink, 'analysis_sink' + PATH_SUFFIX)
+            dataset_sink, 'dataset_sink' + PATH_SUFFIX)
         workflow.run()
         analysis.clear_caches()  # Refreshed cached repository tree object
         with self._connect() as login:
             # Check subject summary directories were created properly in cache
-            expected_subj_filesets = ['subject_sink']
-            subject_dir = self.session_cache(
-                visit=XnatRepo.SUMMARY_NAME,
-                from_analysis=self.SUMMARY_STUDY_NAME)
-            self.assertEqual(filter_scans(os.listdir(subject_dir)),
-                             [(e + '-' + e) for e in expected_subj_filesets])
+            subject_dir = op.join(
+                self.subject_cache_path(repository), 'resources')
+            project_dir = op.join(
+                self.project_cache_path(repository), 'resources')
+            xproject = login.projects[self.project]
+            xsubject = xproject.subjects[self.subject_label()]
+            # Check subject resources in cache
+            self.assertEqual(filter_resources(os.listdir(subject_dir)),
+                             add_metadata_resources(subject_sink_files,
+                                                    md5=True))
             # and on XNAT
-            subject_fileset_names = filter_scans(login.projects[
-                self.project].experiments[
-                    self.session_label(
-                        visit=XnatRepo.SUMMARY_NAME,
-                        from_analysis=self.SUMMARY_STUDY_NAME)].scans.keys())
-            self.assertEqual(expected_subj_filesets,
-                             subject_fileset_names)
+            self.assertEqual(filter_resources(xsubject.resources),
+                             add_metadata_resources(subject_sink_files))
             # Check visit summary directories were created properly in
             # cache
-            expected_visit_filesets = ['visit_sink']
-            visit_dir = self.session_cache(
-                subject=XnatRepo.SUMMARY_NAME,
-                from_analysis=self.SUMMARY_STUDY_NAME)
-            self.assertEqual(filter_scans(os.listdir(visit_dir)),
-                             [(e + '-' + e) for e in expected_visit_filesets])
+            self.assertEqual(filter_resources(os.listdir(project_dir),
+                                              visit=self.VISIT),
+                             add_metadata_resources(visit_sink_files,
+                                                    md5=True))
             # and on XNAT
-            visit_fileset_names = filter_scans(login.projects[
-                self.project].experiments[
-                    self.session_label(
-                        subject=XnatRepo.SUMMARY_NAME,
-                        from_analysis=self.SUMMARY_STUDY_NAME)].scans.keys())
-            self.assertEqual(expected_visit_filesets, visit_fileset_names)
-            # Check project summary directories were created properly in cache
-            expected_proj_filesets = ['analysis_sink']
-            project_dir = self.session_cache(
-                subject=XnatRepo.SUMMARY_NAME,
-                visit=XnatRepo.SUMMARY_NAME,
-                from_analysis=self.SUMMARY_STUDY_NAME)
-            self.assertEqual(filter_scans(os.listdir(project_dir)),
-                             [(e + '-' + e) for e in expected_proj_filesets])
+            self.assertEqual(filter_resources(xproject.resources,
+                                              visit=self.VISIT),
+                             add_metadata_resources(visit_sink_files))
+            # Check dataset summary directories were created properly in cache
+            self.assertEqual(filter_resources(os.listdir(project_dir)),
+                             add_metadata_resources(dataset_sink_files,
+                                                    md5=True))
             # and on XNAT
-            project_fileset_names = filter_scans(login.projects[
-                self.project].experiments[
-                    self.session_label(
-                        subject=XnatRepo.SUMMARY_NAME,
-                        visit=XnatRepo.SUMMARY_NAME,
-                        from_analysis=self.SUMMARY_STUDY_NAME)].scans.keys())
-            self.assertEqual(expected_proj_filesets, project_fileset_names)
+            self.assertEqual(filter_resources(xproject.resources),
+                             add_metadata_resources(dataset_sink_files))
         # Reload the data from the summary directories
         reloadinputnode = pe.Node(IdentityInterface(['subject_id',
                                                      'visit_id']),
@@ -506,12 +501,13 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
             name='reload_source_per_visit')
         reloadsource_per_dataset = pe.Node(
             RepositorySource(
-                analysis.bound_spec(f).slice for f in analysis_sink_files),
+                analysis.bound_spec(f).slice for f in dataset_sink_files),
             name='reload_source_per_dataset')
+        resink_filesets = ['resink1', 'resink2', 'resink3']
         reloadsink = pe.Node(
             RepositorySink(
                 (analysis.bound_spec(f).slice
-                 for f in ['resink1', 'resink2', 'resink3']),
+                 for f in resink_filesets),
                 dummy_pipeline),
             name='reload_sink')
         reloadsink.inputs.name = 'reload_summary'
@@ -533,20 +529,18 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
                                reloadsink,
                                'resink2' + PATH_SUFFIX)
         reloadworkflow.connect(reloadsource_per_dataset,
-                               'analysis_sink' + PATH_SUFFIX,
+                               'dataset_sink' + PATH_SUFFIX,
                                reloadsink,
                                'resink3' + PATH_SUFFIX)
         reloadworkflow.run()
         # Check that the filesets
+        session_dir = op.join(
+            self.session_cache_path(repository), 'resources')
         self.assertEqual(
-            filter_scans(os.listdir(self.session_cache(
-                from_analysis=self.SUMMARY_STUDY_NAME))),
-            ['resink1-resink1', 'resink2-resink2', 'resink3-resink3'])
+            filter_resources(os.listdir(session_dir)),
+            add_metadata_resources(resink_filesets, md5=True))
         # and on XNAT
         with self._connect() as login:
-            resinked_fileset_names = filter_scans(login.projects[
-                self.project].experiments[
-                    self.session_label(
-                        from_analysis=self.SUMMARY_STUDY_NAME)].scans.keys())
-            self.assertEqual(sorted(resinked_fileset_names),
-                             ['resink1', 'resink2', 'resink3'])
+            xsession = login.create_object(self.session_uri())
+            self.assertEqual(filter_resources(xsession.resources.keys()),
+                             add_metadata_resources(resink_filesets))

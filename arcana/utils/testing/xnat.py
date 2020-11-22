@@ -71,31 +71,51 @@ class CreateXnatProjectMixin(object):
 
 class TestOnXnatMixin(CreateXnatProjectMixin):
 
-    def session_label(self, project=None, subject=None, visit=None,
-                      from_analysis=None):
-        if project is None:
-            project = self.project
+    def session_label(self, subject=None, visit=None):
         if subject is None:
             subject = self.SUBJECT
         if visit is None:
             visit = self.VISIT
         label = '_'.join((subject, visit))
-        if from_analysis is not None:
-            label += '_' + from_analysis
         return label
 
-    def session_cache(self, base_dir=None, project=None, subject=None,
-                      visit=None, from_analysis=None):
-        if base_dir is None:
-            base_dir = self.cache_dir
+    def subject_label(self, subject=None):
+        if subject is None:
+            subject = self.SUBJECT
+        return subject
+
+    def session_uri(self, project=None, subject=None, visit=None):
         if project is None:
             project = self.project
         if subject is None:
             subject = self.SUBJECT
-        return op.join(
-            base_dir, project, subject,
-            self.session_label(project=project, subject=subject,
-                               visit=visit, from_analysis=from_analysis))
+        return '/data/archive/projects/{}/subjects/{}/experiments/{}'.format(
+            project, subject, self.session_label(subject, visit))
+
+    def subject_uri(self, project=None, subject=None):
+        if project is None:
+            project = self.project
+        if subject is None:
+            subject = self.SUBJECT
+        return '/data/archive/projects/{}/subjects/{}'.format(project, subject)
+
+    def project_uri(self, project=None):
+        if project is None:
+            project = self.project
+        return '/data/archive/projects/{}'.format(project)
+
+    def session_cache_path(self, repository, project=None, subject=None,
+                           visit=None):
+        return repository.cache_path(self.session_uri(
+            project=project, subject=subject, visit=visit))
+
+    def subject_cache_path(self, repository, project=None, subject=None):
+        return repository.cache_path(self.subject_uri(
+            project=project, subject=subject))
+
+    def project_cache_path(self, repository, project=None):
+        return repository.cache_path(self.project_uri(project=project))
+
 
     def setUp(self):
         BaseTestCase.setUp(self)
@@ -249,7 +269,21 @@ class TestMultiSubjectOnXnatMixin(CreateXnatProjectMixin):
         return path
 
 
-def filter_scans(names):
-    return sorted(f for f in sorted(names)
-                  if (f != XnatRepo.PROV_SCAN
-                      and not f.endswith(XnatRepo.MD5_SUFFIX)))
+def filter_resources(names, visit=None, analysis=None):
+    """Filters out the names of resources to exclude provenance and
+    md5"""
+    filtered = []
+    for name in names:
+        match = re.match(
+            r'(?:(?P<analysis>\w+)-)?(?:vis_(?P<visit>\w+)-)?(?P<deriv>\w+)',
+            name)
+        if ((analysis is None or match.analysis == analysis)
+                and visit == match.group('visit')):
+            filtered.append(name)
+    return sorted(filtered)
+
+def add_metadata_resources(names, md5=False):
+    names = names + [XnatRepo.PROV_RESOURCE]
+    if md5:
+        names.extend(n + XnatRepo.MD5_SUFFIX for n in names)
+    return sorted(names)

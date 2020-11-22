@@ -44,7 +44,7 @@ class BaseTestCase(TestCase):
     SESSION = (SUBJECT, VISIT)
     REF_FORMATS = None
     XNAT_TEST_PROJECT = None
-    STUDY_NAME = None
+    ANALYSIS_NAME = None
 
     # Whether to copy reference filesets from reference directory
     INPUTS_FROM_REF_DIR = False
@@ -183,7 +183,7 @@ class BaseTestCase(TestCase):
 
     def derived_session_dir(self, from_analysis=None):
         if from_analysis is None:
-            from_analysis = self.STUDY_NAME
+            from_analysis = self.ANALYSIS_NAME
         return op.join(self.session_dir, from_analysis)
 
     @property
