@@ -132,31 +132,9 @@ class TestOnXnatMixin(CreateXnatProjectMixin):
                 parent=xsubject)
             for fileset in self.session.filesets:
                 fileset.format = fileset.detect_format(self.REF_FORMATS)
-                if fileset.format.name == 'dicom':
-                    dcm_files = [f for f in os.listdir(fileset.path)
-                                 if f.endswith('.dcm')]
-                    hdr = pydicom.dcmread(op.join(fileset.path, dcm_files[0]))
-                    id_ = int(hdr.SeriesNumber)
-                else:
-                    id_ = fileset.basename
-                xfileset = login.classes.MrScanData(id=id_,
-                                                    type=fileset.basename,
-                                                    parent=xsession)
-                resource = xfileset.create_resource(
-                    fileset.format.resource_names(XnatRepo.type)[0])
-                if fileset.format.directory:
-                    for fname in os.listdir(fileset.path):
-                        resource.upload(
-                            op.join(fileset.path, fname), fname)
-                else:
-                    for path in fileset.paths:
-                        resource.upload(path, op.basename(path))
+                put_fileset(fileset, xsession)
             for field in self.session.fields:
-                if field.dtype is str:
-                    value = '"{}"'.format(field.value)
-                else:
-                    value = field.value
-                xsession.fields[field.name] = value
+                put_field(field, xsession)
 
     def tearDown(self):
         # Clean up working dirs
@@ -166,6 +144,35 @@ class TestOnXnatMixin(CreateXnatProjectMixin):
 
     def _connect(self):
         return xnat.connect(SERVER)
+
+def put_fileset(fileset, xsession):
+    if fileset.format.name == 'dicom':
+        dcm_files = [f for f in os.listdir(fileset.path)
+                     if f.endswith('.dcm')]
+        hdr = pydicom.dcmread(op.join(fileset.path, dcm_files[0]))
+        id_ = int(hdr.SeriesNumber)
+    else:
+        id_ = fileset.basename
+    xfileset = xsession.xnat_session.classes.MrScanData(
+        id=id_, type=fileset.basename, parent=xsession)
+    resource = xfileset.create_resource(
+        fileset.format.resource_names(XnatRepo.type)[0])
+    if fileset.format.directory:
+        for fname in os.listdir(fileset.path):
+            resource.upload(
+                op.join(fileset.path, fname), fname)
+    else:
+        for path in fileset.paths:
+            resource.upload(path, op.basename(path))
+
+
+def put_field(field, xsession):
+    if field.dtype is str:
+        value = '"{}"'.format(field.value)
+    else:
+        value = field.value
+    xsession.fields[field.name] = value
+
 
 
 class TestMultiSubjectOnXnatMixin(CreateXnatProjectMixin):
@@ -181,21 +188,38 @@ class TestMultiSubjectOnXnatMixin(CreateXnatProjectMixin):
 
         self._create_project()
         self.BASE_CLASS.setUp(self)
-        local_dataset = Dataset(self.project_dir, depth=self.dataset_depth)
+        # local_dataset = Dataset(self.project_dir, depth=self.dataset_depth)
         temp_dataset = XnatRepo(SERVER, '/tmp').dataset(self.project)
         with temp_dataset.repository:
-            for node in local_dataset.tree:
+            login = temp_dataset.repository.login
+            xproject = login.projects[self.project]
+            for node in self.input_tree:
+                if node.subject_id is not None and node.visit_id is not None:
+                    xsubject = login.classes.SubjectData(
+                        label=node.subject_id,
+                        parent=xproject)
+                    xsession = login.classes.MrSessionData(
+                        label='_'.join((node.subject_id, node.visit_id)),
+                        parent=xsubject)
+                else:
+                    xsession = None
                 for fileset in node.filesets:
-                    # Need to forcibly change the repository to be XNAT
-                    fileset = copy(fileset)
-                    fileset.format = fileset.detect_format(self.REF_FORMATS)
-                    fileset._dataset = temp_dataset  # noqa pylint: disable=protected-access
-                    fileset.put()
+                    fileset._path = op.join(
+                        self.local_dataset.repository.fileset_path(
+                            fileset, dataset=self.local_dataset))
+                    if not fileset.derived and xsession:
+                        put_fileset(fileset, xsession)
+                    else:
+                        fileset = copy(fileset)
+                        fileset._dataset = temp_dataset
+                        fileset.put()
                 for field in node.fields:
-                    # Need to forcibly change the repository to be XNAT
-                    field = copy(field)
-                    field._dataset = temp_dataset  # noqa pylint: disable=protected-access
-                    field.put()
+                    if not field.derived and xsession:
+                        put_field(field, xsession)
+                    else:
+                        field = copy(field)
+                        field._dataset = temp_dataset
+                        field.put()
                 for record in node.records:
                     temp_dataset.put_record(record)
 

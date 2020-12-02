@@ -645,26 +645,29 @@ class XnatRepo(Repository):
                 continue
             value = value.replace('&quot;', '"')
             name = js['data_fields']['name']
-            field_names = set([(name, None, visit_id, frequency)])
-            # Potentially add the field twice, once
-            # as a field name in its own right (for externally created fields)
-            # and second as a field name prefixed by an analysis name. Would
-            # ideally have the generated fields (and filesets) in a separate
-            # assessor so there was no chance of a conflict but there should
-            # be little harm in having the field referenced twice, the only
-            # issue being with pattern matching
-            field_names.add(self.split_derived_name(name, visit_id=visit_id,
-                                                    frequency=frequency))
-            for name, from_analysis, field_visit_id, field_freq in field_names:
-                fields.append(Field(
-                    name=name,
-                    value=value,
-                    from_analysis=from_analysis,
-                    dataset=dataset,
-                    subject_id=subject_id,
-                    visit_id=field_visit_id,
-                    frequency=field_freq,
-                    **kwargs))
+            # field_names = set([(name, None, visit_id, frequency)])
+            # # Potentially add the field twice, once
+            # # as a field name in its own right (for externally created fields)
+            # # and second as a field name prefixed by an analysis name. Would
+            # # ideally have the generated fields (and filesets) in a separate
+            # # assessor so there was no chance of a conflict but there should
+            # # be little harm in having the field referenced twice, the only
+            # # issue being with pattern matching
+            # field_names.add(self.split_derived_name(name, visit_id=visit_id,
+            #                                         frequency=frequency))
+            # for name, from_analysis, field_visit_id, field_freq in field_names:
+            (name, from_analysis,
+             field_visit_id, field_freq) = self.split_derived_name(
+                 name, visit_id=visit_id, frequency=frequency)
+            fields.append(Field(
+                name=name,
+                value=value,
+                from_analysis=from_analysis,
+                dataset=dataset,
+                subject_id=subject_id,
+                visit_id=field_visit_id,
+                frequency=field_freq,
+                **kwargs))
         return fields
 
     def find_scans(self, session_json, session_uri, subject_id,
@@ -865,12 +868,12 @@ class XnatRepo(Repository):
         `str`
             The derived name
         """
-        if item.frequency == 'per_visit':
-            name = 'vis_{}-{}'.format(item.visit_id, item.name)
+        if item.derived:
+            name = cls.prepend_analysis(item.name, item.from_analysis)
         else:
             name = item.name
-        if item.derived:
-            name = cls.prepend_analysis(name, item.from_analysis)
+        if item.frequency == 'per_visit':
+            name = 'VISIT_{}--{}'.format(item.visit_id, name)
         return name
 
     @classmethod
@@ -907,7 +910,8 @@ class XnatRepo(Repository):
         from_analysis = None
         if '-' in name:
             match = re.match(
-                r'(?:(?P<analysis>\w+)-)?(?:vis_(?P<visit>\w+)-)?(?P<name>.+)',
+                (r'(?:VISIT_(?P<visit>\w+)--)?(?:(?P<analysis>\w+)-)?'
+                 + r'(?P<name>.+)'),
                 name)
             name = match.group('name')
             from_analysis = match.group('analysis')
