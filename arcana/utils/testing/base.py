@@ -505,7 +505,7 @@ class BaseMultiSubjectTestCase(BaseTestCase):
                     fileset._aux_files = {}
                     for (aux_name,
                          aux_path) in fileset.format.default_aux_file_paths(
-                            fileset._path).items():
+                             fileset._path).items():
                         fileset._aux_files[aux_name] = aux_path
                         with open(aux_path, 'w') as f:
                             f.write(str(contents[aux_name]))
@@ -529,7 +529,7 @@ class BaseMultiSubjectTestCase(BaseTestCase):
                 with open(fields_path, 'w', **JSON_ENCODING) as f:
                     json.dump(dct, f, indent=2)
                 if field.derived:
-                    self._make_dir(op.join(session_path,
+                    self._make_dir(op.join(op.dirname(fields_path),
                                            LocalFileSystemRepo.PROV_DIR))
 
     @property
