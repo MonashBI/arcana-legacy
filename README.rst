@@ -1,5 +1,5 @@
-Arcana
-======
+Arcana v1 (legacy)
+==================
 
 .. image:: https://travis-ci.org/MonashBI/arcana.svg?branch=master
   :target: https://travis-ci.org/MonashBI/arcana
@@ -15,6 +15,8 @@ Arcana
   :target: http://arcana.readthedocs.io/en/latest/?badge=latest
   :alt: Documentation Status
 
+
+**NOTE: This repository contains the legacy version of Arcana as described in Close TG, et. al. Neuroinformatics. 2020 18(1):109-129. doi: `<10.1007/s12021-019-09430-1>`_. Please see `<https://github.com/australian-imaging-service/arcana>`_ for the latest version.**
 
 Abstraction of Repository-Centric ANAlysis (Arcana_) is Python framework
 for "repository-centric" analyses of study groups (e.g. NeuroImaging
